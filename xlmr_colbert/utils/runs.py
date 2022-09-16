@@ -5,7 +5,7 @@ import __main__
 import traceback
 import mlflow
 
-import colbert.utils.distributed as distributed
+import xlmr_colbert.utils.distributed as distributed
 
 from contextlib import contextmanager
 from xlmr_colbert.utils.logging import Logger

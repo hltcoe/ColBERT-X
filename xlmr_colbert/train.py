@@ -3,7 +3,7 @@ import random
 import torch
 import copy
 
-import colbert.utils.distributed as distributed
+import xlmr_colbert.utils.distributed as distributed
 
 from xlmr_colbert.utils.parser import Arguments
 from xlmr_colbert.utils.runs import Run

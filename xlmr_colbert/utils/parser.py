@@ -4,7 +4,7 @@ import faiss
 
 from argparse import ArgumentParser
 
-import colbert.utils.distributed as distributed
+import xlmr_colbert.utils.distributed as distributed
 from xlmr_colbert.utils.runs import Run
 from xlmr_colbert.utils.utils import print_message, timestamp, create_directory
 
