@@ -27,10 +27,22 @@ from colbert.utils.utils import flatten, print_message
 
 from colbert.indexing.codecs.residual import ResidualCodec
 
-
+# Eugene: deprecated
 def encode(config, collection, shared_lists, shared_queues):
     encoder = CollectionIndexer(config=config, collection=collection)
     encoder.run(shared_lists)
+
+def sample(config, collection, shared_lists, shared_queues):
+    encoder = CollectionIndexer(config=config, collection=collection)
+    encoder.steps(shared_lists, 0)
+
+def kmeans(config, collection, shared_lists, shared_queues):
+    encoder = CollectionIndexer(config=config, collection=collection)
+    encoder.steps(shared_lists, 1)
+
+def index(config, collection, shared_lists, shared_queues):
+    encoder = CollectionIndexer(config=config, collection=collection)
+    encoder.steps(shared_lists, 2)
 
 
 class CollectionIndexer():
@@ -54,6 +66,14 @@ class CollectionIndexer():
         print_memory_stats(f'RANK:{self.rank}')
 
     def run(self, shared_lists):
+        # FIXME Eugene: 
+        # For some reason running `self.train` on rank=0 is either not sufficient to block other
+        # child processes to use GPU or preventing FAISS from allocating memory on GPUs previously used by other child processes.
+        # So to get around this, the pipeline needs to be separated into three parts -- setup(multiprocess), 
+        # train(initiating from the main process), and the rest(multiprocessing). 
+        # This would be controlled by the indexer. 
+        # This function would be deprecated.
+
         with torch.inference_mode():
             self.setup()
             distributed.barrier(self.rank)
@@ -71,6 +91,30 @@ class CollectionIndexer():
             self.finalize()
             distributed.barrier(self.rank)
             print_memory_stats(f'RANK:{self.rank}')
+
+    def steps(self, shared_lists, step: int):
+        with torch.inference_mode():
+            if step == 0:
+                self.setup()
+                distributed.barrier(self.rank)
+                print_memory_stats(f'RANK:{self.rank}')
+            if step == 1:
+                # should use the main process for entering this block
+                if not self.saver.try_load_codec():
+                    assert self._try_load_plan()
+                    self.train(shared_lists)
+            if step == 2:
+                assert self._try_load_plan()
+                assert self.saver.try_load_codec()
+                self.index()
+                distributed.barrier(self.rank)
+                print_memory_stats(f'RANK:{self.rank}')
+
+                self.finalize()
+                distributed.barrier(self.rank)
+                print_memory_stats(f'RANK:{self.rank}')
+            else:
+                Run().print_main(f"Step {step} does not exist -- ignoring")
 
     def setup(self):
         if self.config.resume:
@@ -223,6 +267,11 @@ class CollectionIndexer():
         print_memory_stats(f'***1*** \t RANK:{self.rank}')
 
         # TODO: Allocate a float16 array. Load the samples from disk, copy to array.
+        if not hasattr(self, 'num_sample_embs'):
+            self.num_sample_embs = sum([ 
+                torch.load( os.path.join(self.config.index_path_, f'sample.{r}.pt') ).size(0) for r in range(self.config.nranks) 
+            ])
+
         sample = torch.empty(self.num_sample_embs, self.config.dim, dtype=torch.float16)
 
         offset = 0
@@ -264,7 +313,8 @@ class CollectionIndexer():
             # For this to work reliably, write the sample to disk. Pickle may not handle >4GB of data.
             # Delete the sample file after work is done.
 
-            shared_lists[0][0] = sample
+            # shared_lists[0][0] = sample
+            shared_lists[0].append( sample )
             return_value_queue = mp.Queue()
 
             args_ = args_ + [shared_lists, return_value_queue]
