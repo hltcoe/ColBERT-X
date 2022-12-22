@@ -98,12 +98,12 @@ class CollectionIndexer():
                 self.setup()
                 distributed.barrier(self.rank)
                 print_memory_stats(f'RANK:{self.rank}')
-            if step == 1:
+            elif step == 1:
                 # should use the main process for entering this block
                 if not self.saver.try_load_codec():
                     assert self._try_load_plan()
                     self.train(shared_lists)
-            if step == 2:
+            elif step == 2:
                 assert self._try_load_plan()
                 assert self.saver.try_load_codec()
                 self.index()
