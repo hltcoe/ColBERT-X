@@ -83,27 +83,33 @@ class Searcher:
         return Ranking(data=data, provenance=provenance)
 
     def dense_search(self, Q: torch.Tensor, k=10, filter_fn=None):
+        # if k <= 10:
+        #     if self.config.ncells is None:
+        #         self.configure(ncells=1)
+        #     if self.config.centroid_score_threshold is None:
+        #         self.configure(centroid_score_threshold=0.5)
+        #     if self.config.ndocs is None:
+        #         self.configure(ndocs=256)
+        # elif k <= 100:
+        #     if self.config.ncells is None:
+        #         self.configure(ncells=2)
+        #     if self.config.centroid_score_threshold is None:
+        #         self.configure(centroid_score_threshold=0.45)
+        #     if self.config.ndocs is None:
+        #         self.configure(ndocs=1024)
+        # else:
+        #     if self.config.ncells is None:
+        #         self.configure(ncells=4)
+        #     if self.config.centroid_score_threshold is None:
+        #         self.configure(centroid_score_threshold=0.4)
+        #     if self.config.ndocs is None:
+        #         self.configure(ndocs=max(k * 4, 4096))
         if k <= 10:
-            if self.config.ncells is None:
-                self.configure(ncells=1)
-            if self.config.centroid_score_threshold is None:
-                self.configure(centroid_score_threshold=0.5)
-            if self.config.ndocs is None:
-                self.configure(ndocs=256)
+            self.configure(ncells=1, centroid_score_threshold=0.5, ndocs=256)
         elif k <= 100:
-            if self.config.ncells is None:
-                self.configure(ncells=2)
-            if self.config.centroid_score_threshold is None:
-                self.configure(centroid_score_threshold=0.45)
-            if self.config.ndocs is None:
-                self.configure(ndocs=1024)
+            self.configure(ncells=2, centroid_score_threshold=0.45, ndocs=1024)
         else:
-            if self.config.ncells is None:
-                self.configure(ncells=4)
-            if self.config.centroid_score_threshold is None:
-                self.configure(centroid_score_threshold=0.4)
-            if self.config.ndocs is None:
-                self.configure(ndocs=max(k * 4, 4096))
+            self.configure(ncells=4, centroid_score_threshold=0.4, ndocs=max(k * 4, 4096))
 
         pids, scores = self.ranker.rank(self.config, Q, filter_fn=filter_fn)
 
