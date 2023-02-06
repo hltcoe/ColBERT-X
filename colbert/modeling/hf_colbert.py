@@ -24,6 +24,8 @@ base_class_mapping={
     "google/electra-base-discriminator": ElectraPreTrainedModel,
     "xlm-roberta-base": XLMRobertaPreTrainedModel,
     "xlm-roberta-large": XLMRobertaPreTrainedModel,
+    "microsoft/xlm-align-base": XLMRobertaPreTrainedModel,
+    "jhu-clsp/bernice": XLMRobertaPreTrainedModel,
     "bert-base-uncased": BertPreTrainedModel,
     "bert-large-uncased": BertPreTrainedModel,
     "microsoft/mdeberta-v3-base": DebertaV2PreTrainedModel,
@@ -38,6 +40,7 @@ model_object_mapping = {
     "xlm-roberta-base": XLMRobertaModel,
     "xlm-roberta-large": XLMRobertaModel,
     "microsoft/xlm-align-base": XLMRobertaModel,
+    "jhu-clsp/bernice": XLMRobertaModel,
     "bert-base-uncased": BertModel,
     "bert-large-uncased": BertModel,
     "microsoft/mdeberta-v3-base": DebertaV2Model,
@@ -135,6 +138,10 @@ def class_factory(name_or_path):
 
             obj = super().from_pretrained(name_or_path, colbert_config=colbert_config)
             obj.base = name_or_path
+
+            if colbert_config.force_resize_embeddings:
+                tok = cls.raw_tokenizer_from_pretrained(name_or_path, colbert_config)
+                obj.LM.resize_token_embeddings(len(tok))
 
             return obj
 
