@@ -8,8 +8,8 @@ from colbert.utils.utils import batch
 
 class QueryTokenizer():
     def __init__(self, config: ColBERTConfig):
-        HF_ColBERT = class_factory(config.checkpoint)
-        self.tok = HF_ColBERT.raw_tokenizer_from_pretrained(config.checkpoint)
+        HF_ColBERT = class_factory(config.model_name)
+        self.tok = HF_ColBERT.raw_tokenizer_from_pretrained(config.checkpoint, colbert_config=config)
 
         self.config = config
         self.query_maxlen = config.query_maxlen

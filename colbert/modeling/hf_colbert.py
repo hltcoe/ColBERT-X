@@ -7,7 +7,8 @@ from transformers import RobertaModel, RobertaPreTrainedModel
 from transformers import XLMRobertaModel, XLMRobertaConfig
 from transformers import ElectraModel, ElectraPreTrainedModel
 from transformers import DebertaV2Model, DebertaV2PreTrainedModel
-from colbert.utils.utils import torch_load_dnn
+from colbert.utils.utils import torch_load_dnn, print_message
+from colbert.infra import ColBERTConfig
 
 class XLMRobertaPreTrainedModel(RobertaPreTrainedModel):
     """
@@ -36,6 +37,7 @@ model_object_mapping = {
     "google/electra-base-discriminator": ElectraModel,
     "xlm-roberta-base": XLMRobertaModel,
     "xlm-roberta-large": XLMRobertaModel,
+    "microsoft/xlm-align-base": XLMRobertaModel,
     "bert-base-uncased": BertModel,
     "bert-large-uncased": BertModel,
     "microsoft/mdeberta-v3-base": DebertaV2Model,
@@ -110,13 +112,24 @@ def class_factory(name_or_path):
 
 
         @classmethod
-        def from_pretrained(cls, name_or_path, colbert_config):
+        def from_pretrained(cls, name_or_path, colbert_config: ColBERTConfig):
             if name_or_path.endswith('.dnn'):
                 dnn = torch_load_dnn(name_or_path)
-                base = dnn.get('arguments', {}).get('model', 'bert-base-uncased')
+                base = dnn.get('arguments', {}).get('model', colbert_config.model_name)
 
-                obj = super().from_pretrained(base, state_dict=dnn['model_state_dict'], colbert_config=colbert_config)
+                obj = cls(AutoConfig.from_pretrained(base), colbert_config=colbert_config)
                 obj.base = base
+
+                if colbert_config.force_resize_embeddings:
+                    tok = cls.raw_tokenizer_from_pretrained(name_or_path, colbert_config)
+                    obj.LM.resize_token_embeddings(len(tok))
+                
+                # from V1 load_checkpoint
+                try:
+                    obj.load_state_dict(dnn['model_state_dict'])
+                except:
+                    print_message("[WARNING] Loading v1 checkpoint with strict=False")
+                    obj.load_state_dict(dnn['model_state_dict'], strict=False)
 
                 return obj
 
@@ -126,18 +139,23 @@ def class_factory(name_or_path):
             return obj
 
         @staticmethod
-        def raw_tokenizer_from_pretrained(name_or_path):
+        def raw_tokenizer_from_pretrained(name_or_path, colbert_config: ColBERTConfig):
             if name_or_path.endswith('.dnn'):
                 dnn = torch_load_dnn(name_or_path)
-                base = dnn.get('arguments', {}).get('model', 'bert-base-uncased')
+                base = dnn.get('arguments', {}).get('model', colbert_config.model_name)
 
                 obj = AutoTokenizer.from_pretrained(base)
                 obj.base = base
 
-                return obj
+            else:
+                obj = AutoTokenizer.from_pretrained(name_or_path)
+                obj.base = name_or_path
 
-            obj = AutoTokenizer.from_pretrained(name_or_path)
-            obj.base = name_or_path
+            # order is important here for matching the implementation of ColBERT-X
+            if colbert_config.query_token_id not in obj.vocab:
+                obj.add_tokens([colbert_config.query_token_id])
+            if colbert_config.doc_token_id not in obj.vocab:
+                obj.add_tokens([colbert_config.doc_token_id])
 
             return obj
 

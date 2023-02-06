@@ -25,7 +25,8 @@ class BaseColBERT(torch.nn.Module):
         assert self.name is not None
         HF_ColBERT = class_factory(self.name)
         self.model = HF_ColBERT.from_pretrained(name_or_path, colbert_config=self.colbert_config)
-        self.raw_tokenizer = AutoTokenizer.from_pretrained(name_or_path)
+        # self.raw_tokenizer = AutoTokenizer.from_pretrained(name_or_path)
+        self.raw_tokenizer = HF_ColBERT.raw_tokenizer_from_pretrained(name_or_path, colbert_config=self.colbert_config)
 
         self.eval()
 

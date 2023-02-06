@@ -6,6 +6,7 @@ import itertools
 
 from multiprocessing import Pool
 from collections import OrderedDict, defaultdict
+from functools import lru_cache
 
 
 def print_message(*s, condition=True, pad=False):
@@ -36,7 +37,7 @@ def file_tqdm(file):
 
         pbar.close()
 
-
+@lru_cache
 def torch_load_dnn(path):
     if path.startswith("http:") or path.startswith("https:"):
         dnn = torch.hub.load_state_dict_from_url(path, map_location='cpu')
