@@ -9,8 +9,7 @@ from colbert.infra.launcher import Launcher
 
 from colbert.utils.utils import create_directory, print_message
 
-from colbert.indexing.collection_indexer import encode
-
+from colbert.indexing.collection_indexer import encode, sample, kmeans, index
 
 class Indexer:
     def __init__(self, checkpoint, config=None):
@@ -55,7 +54,7 @@ class Indexer:
 
         return deleted
 
-    def index(self, name, collection, overwrite=False):
+    def prepare(self, name, collection, overwrite=False):
         assert overwrite in [True, False, 'reuse', 'resume']
 
         self.configure(collection=collection, index_name=name, resume=overwrite=='resume')
@@ -71,15 +70,31 @@ class Indexer:
             self.erase()
 
         if index_does_not_exist or overwrite != 'reuse':
-            self.__launch(collection)
+            self.__launch(sample, collection, nospawn=False)
+            self.__launch(kmeans, collection, nospawn=True)
 
         return self.index_path
 
-    def __launch(self, collection):
+    def index(self, name, collection):
+        self.configure(collection=collection, index_name=name, resume=True)
+        self.configure(bsize=64, partitions=None)
+
+        self.index_path = self.config.index_path_
+        assert os.path.exists(self.config.index_path_), "Run first step `prepare` in advance."
+
+        self.__launch(index, collection, nospawn=False)
+
+        return self.index_path
+
+
+    def __launch(self, callee, collection, nospawn=False):
         manager = mp.Manager()
         shared_lists = [manager.list() for _ in range(self.config.nranks)]
         shared_queues = [manager.Queue(maxsize=1) for _ in range(self.config.nranks)]
 
-        # Encodes collection into index using the CollectionIndexer class
-        launcher = Launcher(encode)
-        launcher.launch(self.config, collection, shared_lists, shared_queues)
+        if not nospawn:
+            launcher = Launcher(callee)
+            launcher.launch(self.config, collection, shared_lists, shared_queues)
+        else:
+            new_config = type(self.config).from_existing(self.config, RunConfig.from_existing(Run().config))
+            callee(new_config, collection, shared_lists, shared_queues)

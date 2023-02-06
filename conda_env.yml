@@ -1,4 +1,4 @@
-name: colbert
+name: plaid
 channels:
   - pytorch
   - nvidia
