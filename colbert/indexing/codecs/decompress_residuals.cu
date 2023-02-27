@@ -46,7 +46,7 @@ torch::Tensor decompress_residuals_cuda(
     const torch::Tensor centroids, const int dim, const int nbits) {
     auto options = torch::TensorOptions()
                        .dtype(torch::kFloat16)
-                       .device(torch::kCUDA, 0)
+                       .device(torch::kCUDA, binary_residuals.device().index())
                        .requires_grad(false);
     torch::Tensor output =
         torch::zeros({(int)binary_residuals.size(0), (int)dim}, options);
