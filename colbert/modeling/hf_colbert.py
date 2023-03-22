@@ -139,9 +139,12 @@ def class_factory(name_or_path):
             obj = super().from_pretrained(name_or_path, colbert_config=colbert_config)
             obj.base = name_or_path
 
-            if colbert_config.force_resize_embeddings:
-                tok = cls.raw_tokenizer_from_pretrained(name_or_path, colbert_config)
-                obj.LM.resize_token_embeddings(len(tok))
+            tok = cls.raw_tokenizer_from_pretrained(name_or_path, colbert_config)
+            if len(tok) != obj.LM.get_input_embeddings().num_embeddings:
+                if colbert_config.force_resize_embeddings:
+                    obj.LM.resize_token_embeddings(len(tok))
+                else:
+                    print_message("[WARNING] Embedding size is DIFFERENT from vocabulary size! WILL get exceptions! ")
 
             return obj
 

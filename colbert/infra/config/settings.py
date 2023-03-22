@@ -153,7 +153,7 @@ class TrainingSettings:
 
     model_name: str = DefaultVal("bert-base-uncased")
 
-    force_resize_embeddings: bool = DefaultVal(False)
+    force_resize_embeddings: bool = DefaultVal(True)
 
 @dataclass
 class IndexingSettings:
