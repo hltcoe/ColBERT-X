@@ -3,6 +3,9 @@ import torch
 import ujson
 import dataclasses
 
+from huggingface_hub import hf_hub_download
+from huggingface_hub.utils import EntryNotFoundError
+
 from typing import Any
 from collections import defaultdict
 from dataclasses import dataclass, fields
@@ -64,6 +67,14 @@ class BaseConfig(CoreConfig):
             loaded_config.set('checkpoint', checkpoint_path)
 
             return loaded_config
+
+        # check if remote repo has it
+        try:
+            loaded_config, _ = cls.from_path(hf_hub_download(checkpoint_path, 'artifact.metadata'))
+            loaded_config.set('checkpoint', checkpoint_path)
+            return loaded_config
+        except EntryNotFoundError:
+            pass
 
         return None  # can happen if checkpoint_path is something like 'bert-base-uncased'
 
