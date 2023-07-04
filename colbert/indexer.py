@@ -58,7 +58,7 @@ class Indexer:
         assert overwrite in [True, False, 'reuse', 'resume']
 
         self.configure(collection=collection, index_name=name, resume=overwrite=='resume')
-        self.configure(bsize=64, partitions=None)
+        self.configure(partitions=None)
 
         self.index_path = self.config.index_path_
         index_does_not_exist = (not os.path.exists(self.config.index_path_))
@@ -70,19 +70,19 @@ class Indexer:
             self.erase()
 
         if index_does_not_exist or overwrite != 'reuse':
-            self.__launch(sample, collection, nospawn=False)
+            self.__launch(sample, collection, nospawn=self.config.gpus == 1)
             self.__launch(kmeans, collection, nospawn=True)
 
         return self.index_path
 
     def index(self, name, collection):
         self.configure(collection=collection, index_name=name, resume=True)
-        self.configure(bsize=64, partitions=None)
+        self.configure(partitions=None)
 
         self.index_path = self.config.index_path_
         assert os.path.exists(self.config.index_path_), "Run first step `prepare` in advance."
 
-        self.__launch(index, collection, nospawn=False)
+        self.__launch(index, collection, nospawn=self.config.gpus == 1)
 
         return self.index_path
 
