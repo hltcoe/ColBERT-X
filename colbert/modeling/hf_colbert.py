@@ -24,14 +24,13 @@ base_class_mapping={
     "google/electra-base-discriminator": ElectraPreTrainedModel,
     "xlm-roberta-base": XLMRobertaPreTrainedModel,
     "xlm-roberta-large": XLMRobertaPreTrainedModel,
+    "eugene-yang/plaidx-xlmr-large-mlir-neuclir": XLMRobertaPreTrainedModel,
     "microsoft/xlm-align-base": XLMRobertaPreTrainedModel,
     "jhu-clsp/bernice": XLMRobertaPreTrainedModel,
     "bert-base-uncased": BertPreTrainedModel,
     "bert-large-uncased": BertPreTrainedModel,
     "microsoft/mdeberta-v3-base": DebertaV2PreTrainedModel,
     "bert-base-multilingual-uncased": BertPreTrainedModel
-
-
 }
 
 model_object_mapping = {
@@ -39,13 +38,13 @@ model_object_mapping = {
     "google/electra-base-discriminator": ElectraModel,
     "xlm-roberta-base": XLMRobertaModel,
     "xlm-roberta-large": XLMRobertaModel,
+    "eugene-yang/plaidx-xlmr-large-mlir-neuclir": XLMRobertaModel,
     "microsoft/xlm-align-base": XLMRobertaModel,
     "jhu-clsp/bernice": XLMRobertaModel,
     "bert-base-uncased": BertModel,
     "bert-large-uncased": BertModel,
     "microsoft/mdeberta-v3-base": DebertaV2Model,
     "bert-base-multilingual-uncased": BertModel
-
 }
 
 
