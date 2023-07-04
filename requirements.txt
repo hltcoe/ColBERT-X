@@ -5,8 +5,6 @@ faiss-gpu
 bitarray
 datasets
 gitpython
-jupyter
-jupyterlab
 ninja
 scipy
 spacy
