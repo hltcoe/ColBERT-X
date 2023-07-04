@@ -1,0 +1,15 @@
+torch
+torchvision
+torchaudio
+faiss-gpu
+bitarray
+datasets
+gitpython
+jupyter
+jupyterlab
+ninja
+scipy
+spacy
+tqdm
+transformers
+ujson
