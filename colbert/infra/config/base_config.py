@@ -11,7 +11,7 @@ from collections import defaultdict
 from dataclasses import dataclass, fields
 from colbert.utils.utils import timestamp, torch_load_dnn
 
-from utility.utils.save_metadata import get_metadata_only
+from colbert.utils.save_metadata import get_metadata_only
 from .core_config import *
 
 

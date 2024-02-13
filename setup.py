@@ -5,7 +5,7 @@ with open('README.md', 'r') as f:
 
 setuptools.setup(
     name='PLAID-X',
-    version='0.2.0',
+    version='0.2.1',
     author='Eugene Yang',
     author_email='eugene.yang@jhu.edu',
     description="Efficient and Effective Passage Search via Contextualized Late Interaction over BERT and XLM-RoBERTa",
@@ -13,7 +13,7 @@ setuptools.setup(
     long_description_content_type='text/markdown',
     url='https://github.com/hltcoe/ColBERT-X/tree/plaid-x',
     packages=setuptools.find_packages(),
-    install_requires=open('./requirements.txt').read().split("\n"),
+    install_requires=open('requirements.txt').read().split("\n"),
     include_package_data=True,
-    python_requires='>=3.6',
+    python_requires='>=3.8',
 )
