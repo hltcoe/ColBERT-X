@@ -15,6 +15,7 @@ class RunSettings:
         so these aren't soft defaults in that specific context.
     """
 
+    debug: bool = DefaultVal(False)
     overwrite: bool = DefaultVal(False)
 
     root: str = DefaultVal(os.path.join(os.getcwd(), 'experiments'))
@@ -26,6 +27,10 @@ class RunSettings:
     rank: int = DefaultVal(0)
     nranks: int = DefaultVal(1)
     amp: bool = DefaultVal(True)
+
+    ivf_num_processes: int = DefaultVal(20)
+    ivf_use_tempdir: bool = DefaultVal(False)
+    ivf_merging_ways: int = DefaultVal(2)
 
     total_visible_gpus = torch.cuda.device_count()
     gpus: int = DefaultVal(total_visible_gpus)
@@ -83,6 +88,10 @@ class RunSettings:
         return os.path.join(self.root, self.experiment, self.script_name_, self.name)
 
     @property
+    def checkpoint_path_(self):
+        return os.path.join(self.path_, "checkpoints")
+
+    @property
     def device_(self):
         return self.gpus_[self.rank % self.nranks]
 
@@ -134,6 +143,10 @@ class TrainingSettings:
 
     resume: bool = DefaultVal(False)
 
+    resume_optimizer: bool = DefaultVal(False)
+
+    fix_broken_optimizer_state: bool = DefaultVal(False)
+
     ## NEW:
     warmup: int = DefaultVal(None)
 
@@ -143,7 +156,11 @@ class TrainingSettings:
 
     nway: int = DefaultVal(2)
 
+    n_query_alternative: int = DefaultVal(1)
+
     use_ib_negatives: bool = DefaultVal(False)
+
+    kd_loss: str = DefaultVal("KLD")
 
     reranker: bool = DefaultVal(False)
 
@@ -155,6 +172,16 @@ class TrainingSettings:
 
     force_resize_embeddings: bool = DefaultVal(True)
 
+    shuffle_passages: bool = DefaultVal(False)
+
+    sampling_max_beta: float = DefaultVal(1.0)
+
+    over_one_epoch: bool = DefaultVal(False)
+
+    multilang: bool = DefaultVal(False)
+
+    nolangreg: bool = DefaultVal(False)
+
 @dataclass
 class IndexingSettings:
     index_path: str = DefaultVal(None)
@@ -165,6 +192,13 @@ class IndexingSettings:
 
     resume: bool = DefaultVal(False)
 
+    max_sampled_pid: int = DefaultVal(-1)
+    max_num_partitions: int = DefaultVal(-1)
+
+    use_lagacy_build_ivf: bool = DefaultVal(False)
+
+    reuse_centroids_from: str = DefaultVal(None)
+
     @property
     def index_path_(self):
         return self.index_path or os.path.join(self.index_root_, self.index_name)
@@ -174,3 +208,5 @@ class SearchSettings:
     ncells: int = DefaultVal(None)
     centroid_score_threshold: float = DefaultVal(None)
     ndocs: int = DefaultVal(None)
+
+    only_approx: bool = DefaultVal(False)

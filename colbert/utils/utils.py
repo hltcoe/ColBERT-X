@@ -8,6 +8,29 @@ from multiprocessing import Pool
 from collections import OrderedDict, defaultdict
 from functools import lru_cache
 
+from time import time
+
+def yield_true():
+    while True:
+        yield True
+
+def easy_pbar(it=None, desc: str=None, disabled: bool=None, **kwargs):
+    if disabled:
+        yield from it
+    else:
+        if desc:
+            print(f">>> {desc}")
+        start = time()
+        it = it or yield_true()
+
+        for counter, x in enumerate(it):
+            if counter % (1000*1000) == 0:
+                print(f'{counter // 1000 // 1000}M', end=' ', flush=True)
+            yield x
+        took = time() - start
+        print(f" --> Took {took:.4f} secs, {took/counter*1000:.4f} ms/doc")
+
+
 
 def print_message(*s, condition=True, pad=False):
     s = ' '.join([str(x) for x in s])

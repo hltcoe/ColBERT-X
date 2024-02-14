@@ -20,7 +20,10 @@ def load_queries(queries_path):
     with open(queries_path) as f:
         for line in f:
             qid, query, *_ = line.strip().split('\t')
-            qid = int(qid)
+            try:
+                qid = int(qid)
+            except:
+                qid = qid.strip()
 
             assert (qid not in queries), ("Query QID", qid, "is repeated!")
             queries[qid] = query
@@ -153,7 +156,7 @@ def load_topK_pids(topK_path, qrels):
 
 
 def load_collection(collection_path):
-    print_message("#> Loading collection...")
+    print_message(f"#> Loading collection {collection_path}...")
 
     collection = []
 
@@ -162,7 +165,11 @@ def load_collection(collection_path):
             if line_idx % (1000*1000) == 0:
                 print(f'{line_idx // 1000 // 1000}M', end=' ', flush=True)
 
-            pid, passage, *rest = line.strip('\n\r ').split('\t')
+            try:
+                pid, passage, *rest = line.strip('\n\r ').split('\t')
+            except Exception as e:
+                print(line_idx, line)
+                raise e
             assert pid == 'id' or int(pid) == line_idx, f"pid={pid}, line_idx={line_idx}"
 
             if len(rest) >= 1:
