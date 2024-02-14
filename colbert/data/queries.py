@@ -12,8 +12,8 @@ class Queries:
     def __init__(self, path=None, data=None):
         self.path = path
 
-        if data:
-            assert isinstance(data, dict), type(data)
+        # if data:
+        #     assert isinstance(data, dict), type(data)
         self._load_data(data) or self._load_file(path)
     
     def __len__(self):

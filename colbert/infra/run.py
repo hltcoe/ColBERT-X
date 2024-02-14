@@ -31,7 +31,7 @@ class Run(object):
         return cls._instance
 
     @property
-    def config(self):
+    def config(self) -> RunConfig:
         return self.stack[-1]
 
     def __getattr__(self, name):

@@ -2,7 +2,7 @@ from colbert.infra.run import Run
 import os
 import ujson
 
-from colbert.utils.utils import print_message
+from colbert.utils.utils import print_message, easy_pbar
 from colbert.infra.provenance import Provenance
 
 
@@ -24,9 +24,16 @@ class Examples:
         examples = []
 
         with open(path) as f:
-            for line in f:
-                example = ujson.loads(line)[:nway]
-                examples.append(example)
+            it = easy_pbar(f, desc=f'Loading {path}', disabled=Run().config.rank != 0)
+            if path.endswith('.tsv'):
+                for i, line in enumerate(it):
+                    examples.append(line.strip().split("\t")[:nway])
+                    if Run().config.debug and i > 10000:
+                        break
+            else:
+                for line in it:
+                    example = ujson.loads(line)[:nway]
+                    examples.append(example)
 
         return examples
 
@@ -40,7 +47,7 @@ class Examples:
 
         if rank or nranks:
             assert rank in range(nranks), (rank, nranks)
-            return [self.data[idx] for idx in range(0, len(self.data), nranks)]  # if line_idx % nranks == rank
+            return [self.data[idx] for idx in range(rank, len(self.data), nranks)]  # if line_idx % nranks == rank
 
         return list(self.data)
 
@@ -74,8 +81,10 @@ class Examples:
         if isinstance(obj, list):
             return cls(data=obj, nway=nway)
 
-        if type(obj) is cls:
-            assert nway is None, nway
+        # if type(obj) is cls:
+        if isinstance(obj, cls):
+            # assert nway is None, nway
+            assert obj.nway == nway, nway
             return obj
 
         assert False, f"obj has type {type(obj)} which is not compatible with cast()"

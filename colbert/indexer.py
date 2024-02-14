@@ -9,7 +9,7 @@ from colbert.infra.launcher import Launcher
 
 from colbert.utils.utils import create_directory, print_message
 
-from colbert.indexing.collection_indexer import encode, sample, kmeans, index
+from colbert.indexing.collection_indexer import reuse_prepare, sample, kmeans, encode, finalize
 
 class Indexer:
     def __init__(self, checkpoint, config=None):
@@ -54,7 +54,7 @@ class Indexer:
 
         return deleted
 
-    def prepare(self, name, collection, overwrite=False):
+    def prepare(self, name, collection, overwrite=False, no_kmeans=False):
         assert overwrite in [True, False, 'reuse', 'resume']
 
         self.configure(collection=collection, index_name=name, resume=overwrite=='resume')
@@ -71,18 +71,42 @@ class Indexer:
 
         if index_does_not_exist or overwrite != 'reuse':
             self.__launch(sample, collection, nospawn=self.config.gpus == 1)
-            self.__launch(kmeans, collection, nospawn=True)
+            if not no_kmeans:
+                self.__launch(kmeans, collection, nospawn=True)
 
         return self.index_path
 
-    def index(self, name, collection):
+    def encode(self, name, collection):
         self.configure(collection=collection, index_name=name, resume=True)
         self.configure(partitions=None)
 
         self.index_path = self.config.index_path_
+            
+        if self.config.reuse_centroids_from is not None: 
+            plan_path = os.path.join(self.index_path, "plan.json")
+            if not os.path.exists(plan_path):
+                # do a light prepare step to create the plan.json file along and soft link the centriods 
+                self.index_path = self.config.index_path_
+                create_directory(self.config.index_path_)
+                self.__launch(reuse_prepare, collection, nospawn=True)
+            else: 
+                print_message(f"############# Ignoring `reuse_centroids_from` since the plan in the index directory already exists -- will only try to resume indexing only")
+
         assert os.path.exists(self.config.index_path_), "Run first step `prepare` in advance."
 
-        self.__launch(index, collection, nospawn=self.config.gpus == 1)
+        self.__launch(encode, collection, nospawn=self.config.gpus == 1)
+
+        return self.index_path
+
+    def finalize(self, name, collection):
+        self.configure(collection=collection, index_name=name, resume=True)
+        self.configure(bsize=64, partitions=None)
+
+        self.index_path = self.config.index_path_
+            
+        
+
+        self.__launch(finalize, collection, nospawn=True)
 
         return self.index_path
 

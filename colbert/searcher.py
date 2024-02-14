@@ -20,7 +20,7 @@ TextQueries = Union[str, 'list[str]', 'dict[int, str]', Queries]
 
 
 class Searcher:
-    def __init__(self, index, checkpoint=None, collection=None, config=None):
+    def __init__(self, index, checkpoint=None, collection=None, config=None, load_collection=False):
         print_memory_stats()
 
         initial_config = ColBERTConfig.from_existing(config, Run().config)
@@ -32,9 +32,11 @@ class Searcher:
         self.checkpoint = checkpoint or self.index_config.checkpoint
         self.checkpoint_config = ColBERTConfig.load_from_checkpoint(self.checkpoint)
         self.config = ColBERTConfig.from_existing(self.checkpoint_config, self.index_config, initial_config)
+        self.configure(checkpoint=self.checkpoint)
 
-        self.collection = Collection.cast(collection or self.config.collection)
-        self.configure(checkpoint=self.checkpoint, collection=self.collection)
+        if load_collection:
+            self.collection = Collection.cast(collection or self.config.collection)
+            self.configure(collection=self.collection)
 
         self.checkpoint = Checkpoint(self.checkpoint, colbert_config=self.config)
         use_gpu = self.config.total_visible_gpus > 0
@@ -70,7 +72,7 @@ class Searcher:
 
     def _search_all_Q(self, queries, Q, k, filter_fn=None):
         all_scored_pids = [list(zip(*self.dense_search(Q[query_idx:query_idx+1], k, filter_fn=filter_fn)))
-                           for query_idx in tqdm(range(Q.size(0)))]
+                           for query_idx in tqdm(range(Q.size(0)), disable=self.config.rank != 0, dynamic_ncols=True)]
 
         data = {qid: val for qid, val in zip(queries.keys(), all_scored_pids)}
 
