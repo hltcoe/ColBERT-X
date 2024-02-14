@@ -2,6 +2,7 @@ import time
 import torch
 import random
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 
 from transformers import AdamW, get_linear_schedule_with_warmup
@@ -9,19 +10,23 @@ from colbert.infra import ColBERTConfig
 from colbert.training.rerank_batcher import RerankBatcher
 
 from colbert.utils.amp import MixedPrecisionManager
-from colbert.training.lazy_batcher import LazyBatcher
+from colbert.training.lazy_batcher import LazyBatcher, MultiLangBatcher
 from colbert.parameters import DEVICE
 
 from colbert.modeling.colbert import ColBERT
 from colbert.modeling.reranker.electra import ElectraReranker
 
 from colbert.utils.utils import print_message
-from colbert.training.utils import print_progress, manage_checkpoints
+from colbert.training.utils import print_progress, manage_checkpoints, find_last_checkpoint, load_checkpoint_misc
 
 
 
 def train(config: ColBERTConfig, triples, queries=None, collection=None):
-    config.checkpoint = config.checkpoint or 'bert-base-uncased'
+    print(f"get checkpoint {config.checkpoint}")
+    if config.resume:
+        config.checkpoint = config.checkpoint or find_last_checkpoint(config.checkpoint_path_)
+    else: 
+        config.checkpoint = config.checkpoint or config.model_name
 
     if config.rank < 1:
         config.help()
@@ -37,12 +42,18 @@ def train(config: ColBERTConfig, triples, queries=None, collection=None):
     print("Using config.bsize =", config.bsize, "(per process) and config.accumsteps =", config.accumsteps)
 
     if collection is not None:
+        if hasattr(collection, 'load_all_collections'):
+            collection.load_all_collections()
+            
         if config.reranker:
             reader = RerankBatcher(config, triples, queries, collection, (0 if config.rank == -1 else config.rank), config.nranks)
+        elif config.multilang:
+            reader = MultiLangBatcher(config, triples, queries, collection, (0 if config.rank == -1 else config.rank), config.nranks)
         else:
             reader = LazyBatcher(config, triples, queries, collection, (0 if config.rank == -1 else config.rank), config.nranks)
     else:
-        raise NotImplementedError()
+        reader = LazyBatcher(config, triples, None, None, (0 if config.rank == -1 else config.rank), config.nranks)
+        # raise NotImplementedError()
 
     if not config.reranker:
         colbert = ColBERT(name=config.checkpoint, colbert_config=config)
@@ -78,11 +89,12 @@ def train(config: ColBERTConfig, triples, queries=None, collection=None):
 
     start_batch_idx = 0
 
-    # if config.resume:
-    #     assert config.checkpoint is not None
-    #     start_batch_idx = checkpoint['batch']
+    if config.resume or config.resume_optimizer:
+        start_batch_idx, optimizer_state_dict = load_checkpoint_misc(config)
+        optimizer.load_state_dict(optimizer_state_dict)
 
-    #     reader.skip_to_batch(start_batch_idx, checkpoint['arguments']['bsize'])
+        if config.resume:
+            reader.skip_to_batch(start_batch_idx)
 
     for batch_idx, BatchSteps in zip(range(start_batch_idx, config.maxsteps), reader):
         if (warmup_bert is not None) and warmup_bert <= batch_idx:
@@ -93,14 +105,14 @@ def train(config: ColBERTConfig, triples, queries=None, collection=None):
 
         for batch in BatchSteps:
             with amp.context():
-                try:
+                if len(batch) == 3:
                     queries, passages, target_scores = batch
                     encoding = [queries, passages]
-                except:
+                else:
                     encoding, target_scores = batch
                     encoding = [encoding.to(DEVICE)]
 
-                scores = colbert(*encoding)
+                scores: torch.Tensor = colbert(*encoding)
 
                 if config.use_ib_negatives:
                     scores, ib_loss = scores
@@ -110,23 +122,63 @@ def train(config: ColBERTConfig, triples, queries=None, collection=None):
                 if len(target_scores) and not config.ignore_scores:
                     target_scores = torch.tensor(target_scores).view(-1, config.nway).to(DEVICE)
                     target_scores = target_scores * config.distillation_alpha
-                    target_scores = torch.nn.functional.log_softmax(target_scores, dim=-1)
+                    target_scores = F.log_softmax(target_scores, dim=-1)
 
-                    log_scores = torch.nn.functional.log_softmax(scores, dim=-1)
-                    loss = torch.nn.KLDivLoss(reduction='batchmean', log_target=True)(log_scores, target_scores)
+                    log_scores = F.log_softmax(scores, dim=-1)
+                    
+                    if config.kd_loss == 'KLD':
+                        loss = nn.KLDivLoss(reduction='batchmean', log_target=True)(log_scores, target_scores)
+                    elif config.kd_loss == 'MSE':
+                        loss = nn.MSELoss()(log_scores, target_scores)
+                    else:
+                        raise ValueError(f"Unsupported kd loss function: {config.kd_loss}")
                 else:
+                    # if config.rank < 1:
+                    #     print(batch)
+                    #     print(scores, labels[:scores.size(0)])
                     loss = nn.CrossEntropyLoss()(scores, labels[:scores.size(0)])
 
-                if config.use_ib_negatives:
+                if config.use_ib_negatives: # Eugene: pretty much broken...
                     if config.rank < 1:
                         print('\t\t\t\t', loss.item(), ib_loss.item())
 
                     loss += ib_loss
+                
+                if config.multilang and not config.nolangreg:
+                    ## all passages might be too much...
+                    # lang_scores: torch.Tensor = scores.view(-1, config.bsize // config.accumsteps, config.nway).permute(1, 2, 0).flatten(start_dim=0, end_dim=1)
+                    lang_scores: torch.Tensor = log_scores.view(-1, config.bsize // config.accumsteps, config.nway).permute(1, 2, 0).flatten(start_dim=0, end_dim=1)
+                    
+                    # try only the most relevant passage
+                    # most_rel = target_scores.argmax(dim=-1)
+                    # lang_scores = scores.index_select(-1, most_rel).diag().view(reader.nlang, -1).T
+                    # print(scores)
+                    # print(lang_scores)
+
+                    # loss += (lang_scores.max(dim=-1).values - lang_scores.min(dim=-1).values).mean()
+                    # lang_loss = (lang_scores - lang_scores.mean(dim=-1).unsqueeze(1)).norm(dim=-1).mean() 
+                    # scale = min(1 / (200*(loss.item()**2)), 1.)
+                    
+                    lang_loss = []
+                    for i in range(reader.nlang):
+                        for j in range(i, reader.nlang):
+                            lang_loss.append(symmetric_divergence(lang_scores[:, i], lang_scores[:, j]))
+                    lang_loss = torch.stack(lang_loss).mean()
+                    
+                    if config.rank < 1:
+                        print(f"#>>> loss={loss.item()}+{lang_loss.item()}")
+                        
+                    loss += lang_loss
+
 
                 loss = loss / config.accumsteps
 
             if config.rank < 1:
-                print_progress(scores)
+                if len(target_scores) and not config.ignore_scores:
+                    highest_avg, lowest_avg = scores.max(dim=-1).values.mean().item(), scores.min(dim=-1).values.mean().item()
+                    print(f"#>>>   {highest_avg:.2f}, {lowest_avg:.2f} \t\t|\t\t {highest_avg-lowest_avg:.2f}")
+                else:
+                    print_progress(scores)
 
             amp.backward(loss)
 
@@ -147,6 +199,11 @@ def train(config: ColBERTConfig, triples, queries=None, collection=None):
 
         return ckpt_path  # TODO: This should validate and return the best checkpoint, not just the last one.
 
+
+def symmetric_divergence(dist_a, dist_b, alpha=0.5, log_target=True):
+    # Jensen–Shannon divergence
+    return alpha * nn.KLDivLoss(reduction='batchmean', log_target=log_target)(dist_a, dist_b) + \
+           (1-alpha) * nn.KLDivLoss(reduction='batchmean', log_target=log_target)(dist_b, dist_a)
 
 
 def set_bert_grad(colbert, value):

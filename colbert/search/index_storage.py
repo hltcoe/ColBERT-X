@@ -96,6 +96,8 @@ class IndexScorer(IndexLoader, CandidateGeneration):
             If Q.size(0) is 1, the matrix will be compared with all passages.
             Otherwise, each query matrix will be compared against the *aligned* passage.
         """
+        if config.only_approx:
+            assert self.use_gpu
 
         # TODO: Remove batching?
         batch_size = 2 ** 20
@@ -126,6 +128,9 @@ class IndexScorer(IndexLoader, CandidateGeneration):
                 approx_scores_ = colbert_score_reduce(approx_scores_padded, approx_scores_mask, config)
                 approx_scores.append(approx_scores_)
             approx_scores = torch.cat(approx_scores, dim=0)
+            if config.only_approx:
+                return approx_scores, pids
+
             assert approx_scores.is_cuda, approx_scores.device
             if config.ndocs < len(approx_scores):
                 pids = pids[torch.topk(approx_scores, k=config.ndocs).indices]
@@ -136,6 +141,8 @@ class IndexScorer(IndexLoader, CandidateGeneration):
             approx_scores_strided = StridedTensor(approx_scores, codes_lengths, use_gpu=self.use_gpu)
             approx_scores_padded, approx_scores_mask = approx_scores_strided.as_padded_tensor()
             approx_scores = colbert_score_reduce(approx_scores_padded, approx_scores_mask, config)
+
+            
             if config.ndocs // 4 < len(approx_scores):
                 pids = pids[torch.topk(approx_scores, k=(config.ndocs // 4)).indices]
         else:

@@ -22,7 +22,9 @@ class Collection:
 
     def __getitem__(self, item):
         # TODO: Load from disk the first time this is called. Unless self.data is already not None.
-        return self.data[item]
+        if isinstance(item, list):
+            return [ self.data[int(i)] for i in item ]
+        return self.data[int(item)]
 
     def __len__(self):
         # TODO: Load here too. Basically, let's make data a property function and, on first call, either load or get __data.
@@ -91,7 +93,8 @@ class Collection:
         if type(obj) is list:
             return cls(data=obj)
 
-        if type(obj) is cls:
+        # if type(obj) is cls:
+        if isinstance(obj, cls):
             return obj
 
         assert False, f"obj has type {type(obj)} which is not compatible with cast()"

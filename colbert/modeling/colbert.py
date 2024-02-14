@@ -55,7 +55,10 @@ class ColBERT(BaseColBERT):
         D, D_mask = self.doc(*D, keep_dims='return_mask')
 
         # Repeat each query encoding for every corresponding document.
-        Q_duplicated = Q.repeat_interleave(self.colbert_config.nway, dim=0).contiguous()
+        Q_duplicated = Q
+        if Q.shape[0] != D.shape[0]:
+            Q_duplicated = Q.repeat_interleave(self.colbert_config.nway, dim=0).contiguous()
+            
         scores = self.score(Q_duplicated, D, D_mask)
 
         if self.colbert_config.use_ib_negatives:
@@ -71,14 +74,34 @@ class ColBERT(BaseColBERT):
         scores = colbert_score_reduce(scores, D_mask.repeat(Q.size(0), 1, 1), self.colbert_config)
 
         nway = self.colbert_config.nway
-        all_except_self_negatives = [list(range(qidx*D.size(0), qidx*D.size(0) + nway*qidx+1)) +
-                                     list(range(qidx*D.size(0) + nway * (qidx+1), qidx*D.size(0) + D.size(0)))
-                                     for qidx in range(Q.size(0))]
+        nq_alternative = self.colbert_config.n_query_alternative
+
+        if nq_alternative > 1:
+            all_except_self_negatives = []
+            for qidx in range(Q.size(0)):
+                left_starts = qidx*D.size(0)
+                left_ends = left_starts + qidx//nq_alternative*nway*nq_alternative
+                right_starts = left_ends + nway*nq_alternative
+                right_ends = (qidx+1)*D.size(0)
+                all_except_self_negatives += [
+                    list(range(left_starts, left_ends)) + [left_ends, left_ends+nway] +
+                    list(range(right_starts, right_ends))
+                ]
+        else:            
+            all_except_self_negatives = [list(range(qidx*D.size(0), qidx*D.size(0) + nway*qidx+1)) +
+                                        list(range(qidx*D.size(0) + nway * (qidx+1), qidx*D.size(0) + D.size(0)))
+                                        for qidx in range(Q.size(0))]
 
         scores = scores[flatten(all_except_self_negatives)]
         scores = scores.view(Q.size(0), -1)  # D.size(0) - self.colbert_config.nway + 1)
 
-        labels = torch.arange(0, Q.size(0), device=scores.device) * (self.colbert_config.nway)
+        if nq_alternative > 1:
+            labels = torch.zeros_like(scores, dtype=torch.float)
+            for r, c in enumerate(torch.repeat_interleave(torch.arange(0, D.size(0), nway*nq_alternative), nq_alternative, 0)):
+                labels[(r, c)] = True
+                labels[(r, c+1)] = True
+        else:
+            labels = torch.arange(0, Q.size(0), device=scores.device) * (self.colbert_config.nway)
 
         return torch.nn.CrossEntropyLoss()(scores, labels)
 
@@ -129,7 +152,7 @@ class ColBERT(BaseColBERT):
 # TODO: In Query/DocTokenizer, use colbert.raw_tokenizer
 
 # TODO: The masking below might also be applicable in the kNN part
-def colbert_score_reduce(scores_padded, D_mask, config: ColBERTConfig):
+def colbert_score_reduce(scores_padded, D_mask, config: ColBERTConfig) -> torch.Tensor:
     D_padding = ~D_mask.view(scores_padded.size(0), scores_padded.size(1)).bool()
     scores_padded[D_padding] = -9999
     scores = scores_padded.max(1).values

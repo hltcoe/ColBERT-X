@@ -7,6 +7,7 @@ from colbert.utils.utils import torch_load_dnn
 from transformers import AutoTokenizer
 from colbert.modeling.hf_colbert import class_factory
 from colbert.infra.config import ColBERTConfig
+from colbert.infra.run import Run
 
 
 class BaseColBERT(torch.nn.Module):
@@ -19,6 +20,8 @@ class BaseColBERT(torch.nn.Module):
 
     def __init__(self, name_or_path, colbert_config=None):
         super().__init__()
+
+        Run().print(f"Loading model {name_or_path}...")
 
         self.colbert_config = ColBERTConfig.from_existing(ColBERTConfig.load_from_checkpoint(name_or_path), colbert_config)
         self.name = self.colbert_config.model_name
