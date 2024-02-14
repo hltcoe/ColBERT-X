@@ -5,7 +5,7 @@ with open('README.md', 'r') as f:
 
 setuptools.setup(
     name='PLAID-X',
-    version='0.2.1',
+    version='0.3.0a1',
     author='Eugene Yang',
     author_email='eugene.yang@jhu.edu',
     description="Efficient and Effective Passage Search via Contextualized Late Interaction over BERT and XLM-RoBERTa",
