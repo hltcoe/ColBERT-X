@@ -11,3 +11,6 @@ spacy
 tqdm
 transformers
 ujson
+more_itertools
+ir_datasets
+ir_measures
