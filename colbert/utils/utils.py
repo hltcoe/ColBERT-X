@@ -14,17 +14,19 @@ def yield_true():
     while True:
         yield True
 
-def easy_pbar(it=None, desc: str=None, disabled: bool=None, **kwargs):
+def easy_pbar(it=None, desc: str=None, disabled: bool=False, use_tqdm: bool=False, **kwargs):
     if disabled:
         yield from it
     else:
-        if desc:
+        if desc and not use_tqdm:
             print(f">>> {desc}")
         start = time()
         it = it or yield_true()
+        if use_tqdm:
+            it = tqdm(it, desc=desc, **kwargs)
 
         for counter, x in enumerate(it):
-            if counter % (1000*1000) == 0:
+            if counter % (1000*1000) == 0 and not use_tqdm:
                 print(f'{counter // 1000 // 1000}M', end=' ', flush=True)
             yield x
         took = time() - start

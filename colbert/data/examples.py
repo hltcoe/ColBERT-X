@@ -1,10 +1,15 @@
 from colbert.infra.run import Run
 import os
+import gzip
 import ujson
 
+from huggingface_hub import hf_hub_download
+from huggingface_hub.utils import EntryNotFoundError
+
 from colbert.utils.utils import print_message, easy_pbar
+from colbert.utils.save_metadata import get_metadata_only
+
 from colbert.infra.provenance import Provenance
-from utility.utils.save_metadata import get_metadata_only
 
 
 class Examples:
@@ -20,11 +25,17 @@ class Examples:
     def toDict(self):
         return self.provenance()
 
-    def _load_file(self, path):
+    def _load_file(self, path: str):
         nway = self.nway + 1 if self.nway else self.nway
         examples = []
 
-        with open(path) as f:
+        if not os.path.exists(path):
+            try:
+                path = hf_hub_download(*path.split(":"), repo_type="dataset")
+            except EntryNotFoundError:
+                raise FileNotFoundError(f"`{path}` does not exist on disk nor Huggingface Hub")
+
+        with (gzip.open if path.endswith('.gz') else open)(path, 'rt') as f:
             it = easy_pbar(f, desc=f'Loading {path}', disabled=Run().config.rank != 0)
             if path.endswith('.tsv'):
                 for i, line in enumerate(it):

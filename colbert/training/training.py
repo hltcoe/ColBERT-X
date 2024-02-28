@@ -22,7 +22,6 @@ from colbert.training.utils import print_progress, manage_checkpoints, find_last
 
 
 def train(config: ColBERTConfig, triples, queries=None, collection=None):
-    print(f"get checkpoint {config.checkpoint}")
     if config.resume:
         config.checkpoint = config.checkpoint or find_last_checkpoint(config.checkpoint_path_)
     else: 
