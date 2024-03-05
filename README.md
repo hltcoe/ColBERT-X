@@ -3,6 +3,11 @@
 This is a generalized version of [PLAID](https://github.com/stanford-futuredata/ColBERT) and the previous ColBERT-X for CLIR.
 The codebase supports models trained with the original ColBERT-X scripts, which are not compatible with the PLAID codebase released from the Stadford Futuredata Group. 
 
+## Resources
+
+We release a set of CLIR models in our [Translate-Distill Huggingface Space](https://huggingface.co/collections/eugene-yang/translate-distill-658ccc3b38672a848bd53d74). 
+Feel free to try it out! 
+
 ## Installation
 
 PLAID-X is available on PyPi. You can install it through
