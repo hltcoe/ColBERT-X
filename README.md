@@ -5,7 +5,7 @@ The codebase supports models trained with the original ColBERT-X scripts, which 
 
 ## Resources
 
-We release a set of CLIR models in our [Translate-Distill Huggingface Space](https://huggingface.co/collections/eugene-yang/translate-distill-658ccc3b38672a848bd53d74). 
+We release a set of CLIR models in our [Translate-Distill](https://huggingface.co/collections/hltcoe/translate-distill-659a11e0a7f2d2491780a6bb) and [Multilingual Translate-Distill Huggingface Space](https://huggingface.co/collections/hltcoe/multilingual-translate-distill-66280df75c34dbbc1708a22f). 
 Feel free to try it out! 
 
 ## Installation
