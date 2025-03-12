@@ -9,7 +9,7 @@ ninja
 scipy
 spacy
 tqdm
-transformers
+transformers>=4.38.2
 ujson
 more_itertools
 ir_datasets
