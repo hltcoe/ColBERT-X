@@ -18,6 +18,12 @@ pip install PLAID-X
 Make sure your gcc and gxx version is `>=9.4.0`, which is the requirement for `ninja` to work properly.
 We recommend using a `conda` environment to control it.
 
+To support GPU for fitting the K-Means clustering during PLAID-X indexing, you can install the GPU extra with
+```bash
+pip install PLAID-X[gpu]
+```
+
+
 ## Usage
 
 We have published a [tutorial](https://github.com/hltcoe/clir-tutorial) on CLIR with notebooks to run various models. 

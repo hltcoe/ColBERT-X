@@ -1,7 +1,7 @@
 torch
 torchvision
 torchaudio
-faiss-gpu
+faiss-cpu
 bitarray
 datasets
 gitpython

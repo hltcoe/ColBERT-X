@@ -14,6 +14,9 @@ setuptools.setup(
     url='https://github.com/hltcoe/ColBERT-X/tree/plaid-x',
     packages=setuptools.find_packages(),
     install_requires=open('requirements.txt').read().split("\n"),
+    extras_require={
+        'gpu': ['faiss-gpu']
+    },
     include_package_data=True,
     python_requires='>=3.8',
 )
