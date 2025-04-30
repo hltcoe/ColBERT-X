@@ -5,7 +5,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-from transformers import AdamW, get_linear_schedule_with_warmup
+from torch.optim import AdamW
+from transformers import get_linear_schedule_with_warmup
 from colbert.infra import ColBERTConfig
 from colbert.training.rerank_batcher import RerankBatcher
 
@@ -24,7 +25,7 @@ from colbert.training.utils import print_progress, manage_checkpoints, find_last
 def train(config: ColBERTConfig, triples, queries=None, collection=None):
     if config.resume:
         config.checkpoint = config.checkpoint or find_last_checkpoint(config.checkpoint_path_)
-    else: 
+    else:
         config.checkpoint = config.checkpoint or config.model_name
 
     if config.rank < 1:
@@ -43,7 +44,7 @@ def train(config: ColBERTConfig, triples, queries=None, collection=None):
     if collection is not None:
         if hasattr(collection, 'load_all_collections'):
             collection.load_all_collections()
-            
+
         if config.reranker:
             reader = RerankBatcher(config, triples, queries, collection, (0 if config.rank == -1 else config.rank), config.nranks)
         elif config.multilang:
@@ -124,7 +125,7 @@ def train(config: ColBERTConfig, triples, queries=None, collection=None):
                     target_scores = F.log_softmax(target_scores, dim=-1)
 
                     log_scores = F.log_softmax(scores, dim=-1)
-                    
+
                     if config.kd_loss == 'KLD':
                         loss = nn.KLDivLoss(reduction='batchmean', log_target=True)(log_scores, target_scores)
                     elif config.kd_loss == 'MSE':
@@ -142,12 +143,12 @@ def train(config: ColBERTConfig, triples, queries=None, collection=None):
                         print('\t\t\t\t', loss.item(), ib_loss.item())
 
                     loss += ib_loss
-                
+
                 if config.multilang and not config.nolangreg:
                     ## all passages might be too much...
                     # lang_scores: torch.Tensor = scores.view(-1, config.bsize // config.accumsteps, config.nway).permute(1, 2, 0).flatten(start_dim=0, end_dim=1)
                     lang_scores: torch.Tensor = log_scores.view(-1, config.bsize // config.accumsteps, config.nway).permute(1, 2, 0).flatten(start_dim=0, end_dim=1)
-                    
+
                     # try only the most relevant passage
                     # most_rel = target_scores.argmax(dim=-1)
                     # lang_scores = scores.index_select(-1, most_rel).diag().view(reader.nlang, -1).T
@@ -155,18 +156,18 @@ def train(config: ColBERTConfig, triples, queries=None, collection=None):
                     # print(lang_scores)
 
                     # loss += (lang_scores.max(dim=-1).values - lang_scores.min(dim=-1).values).mean()
-                    # lang_loss = (lang_scores - lang_scores.mean(dim=-1).unsqueeze(1)).norm(dim=-1).mean() 
+                    # lang_loss = (lang_scores - lang_scores.mean(dim=-1).unsqueeze(1)).norm(dim=-1).mean()
                     # scale = min(1 / (200*(loss.item()**2)), 1.)
-                    
+
                     lang_loss = []
                     for i in range(reader.nlang):
                         for j in range(i, reader.nlang):
                             lang_loss.append(symmetric_divergence(lang_scores[:, i], lang_scores[:, j]))
                     lang_loss = torch.stack(lang_loss).mean()
-                    
+
                     if config.rank < 1:
                         print(f"#>>> loss={loss.item()}+{lang_loss.item()}")
-                        
+
                     loss += lang_loss
 
 

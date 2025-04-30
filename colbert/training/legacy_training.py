@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-from transformers import AdamW
+from torch.optim import AdamW
 from colbert.infra import ColBERTConfig, Run
 from colbert.utils.amp import MixedPrecisionManager
 
@@ -25,7 +25,7 @@ def train(config: ColBERTConfig, triples, queries=None, collection=None):
 
     if config.resume:
         config.checkpoint = config.checkpoint or find_last_checkpoint(config.checkpoint_path_)
-    else: 
+    else:
         config.checkpoint = config.checkpoint or config.model_name
 
 
@@ -33,17 +33,17 @@ def train(config: ColBERTConfig, triples, queries=None, collection=None):
     random.seed(12345)
     np.random.seed(12345)
     torch.manual_seed(12345)
-    
+
     torch.cuda.manual_seed_all(12345)
 
-    
+
     assert config.bsize % config.nranks == 0, (config.bsize, config.nranks)
     assert config.accumsteps == 1
     config.bsize = config.bsize // config.nranks
 
     print("Using config.bsize =", config.bsize, "(per process) and config.accumsteps =", config.accumsteps)
 
-    
+
     reader = LazyBatcher(config, triples, queries, collection, (0 if config.rank == -1 else config.rank), config.nranks)
     # reader.tensorize_triples = partial(legacy_tensorize_triples, reader.query_tokenizer, reader.doc_tokenizer)
 
@@ -52,8 +52,8 @@ def train(config: ColBERTConfig, triples, queries=None, collection=None):
 
     colbert = ColBERT(name=config.checkpoint, colbert_config=config)
 
-    
-    # TODO: add load optimizer back     
+
+    # TODO: add load optimizer back
     # if config.checkpoint is not None:
     #     # assert config.resume_optimizer is False, "TODO: This would mean reload optimizer too."
     #     if not config.resume_optimizer:
@@ -118,11 +118,11 @@ def train(config: ColBERTConfig, triples, queries=None, collection=None):
 
                 scores = colbert(queries, passages)
                 # print(scores.tolist())
-                
+
                 scores = scores.view(-1, config.nway)
 
                 # .view(-1, config.nway)
-                
+
                 # .view(2, -1).permute(1, 0)
 
                 loss = criterion(scores, labels[:scores.size(0)])
@@ -152,5 +152,5 @@ def train(config: ColBERTConfig, triples, queries=None, collection=None):
 
             print_message(batch_idx, avg_loss)
             manage_checkpoints(config, colbert, optimizer, batch_idx+1)
-            
+
     manage_checkpoints(config, colbert, optimizer, batch_idx+1, consumed_all_triples=True)
