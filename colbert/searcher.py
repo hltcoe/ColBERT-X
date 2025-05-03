@@ -30,18 +30,26 @@ class Searcher:
         self.index_config = ColBERTConfig.load_from_index(self.index)
 
         self.checkpoint = checkpoint or self.index_config.checkpoint
-        self.checkpoint_config = ColBERTConfig.load_from_checkpoint(self.checkpoint)
-        self.config = ColBERTConfig.from_existing(self.checkpoint_config, self.index_config, initial_config)
+
+        if isinstance(checkpoint, Checkpoint):
+            use_gpu = self.checkpoint.device != torch.device('cpu')
+            self.checkpoint_config = self.checkpoint.colbert_config
+            self.config = ColBERTConfig.from_existing(self.checkpoint_config, self.index_config, initial_config)
+        else:
+            self.checkpoint_config = ColBERTConfig.load_from_checkpoint(self.checkpoint)
+            self.config = ColBERTConfig.from_existing(self.checkpoint_config, self.index_config, initial_config)
+            
+            self.checkpoint = Checkpoint(self.checkpoint, colbert_config=self.config)
+            use_gpu = self.config.total_visible_gpus > 0
+            if use_gpu:
+                self.checkpoint = self.checkpoint.cuda()
+    
         self.configure(checkpoint=self.checkpoint)
 
         if load_collection:
             self.collection = Collection.cast(collection or self.config.collection)
             self.configure(collection=self.collection)
 
-        self.checkpoint = Checkpoint(self.checkpoint, colbert_config=self.config)
-        use_gpu = self.config.total_visible_gpus > 0
-        if use_gpu:
-            self.checkpoint = self.checkpoint.cuda()
         self.ranker = IndexScorer(self.index, use_gpu)
 
         print_memory_stats()
