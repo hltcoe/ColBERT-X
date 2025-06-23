@@ -7,6 +7,7 @@ from typing import Any
 from collections import defaultdict
 from dataclasses import dataclass, fields
 from colbert.utils.utils import timestamp, torch_load_dnn
+from dataclasses import MISSING
 
 
 @dataclass
@@ -26,7 +27,7 @@ class CoreConfig:
         for field in fields(self):
             field_val = getattr(self, field.name)
 
-            if isinstance(field_val, DefaultVal) or field_val is None:
+            if field.default is not MISSING and hasattr(field.default, 'val'):
                 setattr(self, field.name, field.default.val)
 
             if not isinstance(field_val, DefaultVal):
@@ -34,7 +35,9 @@ class CoreConfig:
     
     def assign_defaults(self):
         for field in fields(self):
-            setattr(self, field.name, field.default.val)
+            
+            if field.default is not MISSING and hasattr(field.default, 'val'):
+                setattr(self, field.name, field.default.val)
             self.assigned[field.name] = True
 
     def configure(self, ignore_unrecognized=True, **kw_args):

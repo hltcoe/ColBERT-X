@@ -6,6 +6,8 @@
 /profiler/
 /logs/
 /_publish_model/
+/build/
+/PLAID_X.egg-info
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
