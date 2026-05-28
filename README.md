@@ -1,3 +1,5 @@
+**This repository is not being maintained. We recommend that you use pylate instead.**
+
 # PLAID-X
 
 This is a generalized version of [PLAID](https://github.com/stanford-futuredata/ColBERT) and the previous ColBERT-X for CLIR.
